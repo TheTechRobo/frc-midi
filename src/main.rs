@@ -4,6 +4,9 @@ use std::sync::mpsc::{channel, Sender};
 
 use midi_control::MidiMessage::*;
 
+mod types;
+use types::*;
+
 const WORLDE_EASY_KEY: &str = "WORLDE easy key";
 
 fn find_port<T>(midi_io: &T) -> Option<T::Port>
@@ -20,69 +23,16 @@ where T: midir::MidiIO, {
     device_port
 }
 
-#[derive(Debug, Eq, PartialEq)]
-enum Button {
-    ButtonC,
-    ButtonCS,
-    ButtonD,
-    ButtonDS,
-    ButtonE,
-    ButtonF,
-    ButtonFS,
-    ButtonG,
-    ButtonGS,
-    ButtonA,
-    ButtonAS,
-    ButtonB,
-    ButtonMod
-}
-
-impl Button {
-    fn from_int(key: u8) -> Button {
-        let nk = key % 12;
-        let octave = key / 12;
-        let b: Button = match nk {
-            0 => Button::ButtonC,
-            1 => Button::ButtonCS,
-            2 => Button::ButtonD,
-            3 => Button::ButtonDS,
-            4 => Button::ButtonE,
-            5 => Button::ButtonF,
-            6 => Button::ButtonFS,
-            7 => Button::ButtonG,
-            8 => Button::ButtonGS,
-            9 => Button::ButtonA,
-            10 => Button::ButtonAS,
-            11 => Button::ButtonB,
-            _ => unreachable!()
-        };
-        b
-    }
-}
-
-#[derive(Debug)]
-enum DialMovement {
-    Left,
-    Right,
-    NoChange
-}
-
-#[derive(Debug)]
-enum ControllerEvent {
-    ButtonPress(Button),
-    ButtonRelease(Button),
-    DialTurn(DialMovement)
-}
-
 #[derive(Debug)]
 struct Retval {
-    d: ControllerEvent
+    d: ControllerEvent,
+    timestamp_us: u64
 }
 
 struct Stuff {
     sender: Sender<Retval>,
     last_program: u8,
-    dial_already_pushed: bool,
+    dial_calibrated: bool,
 }
 
 fn midi_message_callback(timestamp: u64, data: &[u8], df: &mut Stuff) {
@@ -119,10 +69,10 @@ fn midi_message_callback(timestamp: u64, data: &[u8], df: &mut Stuff) {
                     direction = DialMovement::NoChange;
                 }
                 df.last_program = data[1];
-                if df.dial_already_pushed {
+                if df.dial_calibrated {
                     rv = Some(ControllerEvent::DialTurn(direction));
                 } else {
-                    df.dial_already_pushed = true;
+                    df.dial_calibrated = true;
                     rv = None;
                 }
             } else {
@@ -139,6 +89,7 @@ fn midi_message_callback(timestamp: u64, data: &[u8], df: &mut Stuff) {
     if let Some(ev) = event {
         let rv = Retval {
             d: ev,
+            timestamp_us: timestamp
         };
         sender.send(rv).expect("failed to send sending stuff sender");
     }
@@ -157,7 +108,7 @@ fn main() {
     let thing: Stuff = Stuff {
         sender,
         last_program: 0,
-        dial_already_pushed: false,
+        dial_calibrated: false,
     };
     let _connect_in = midi_input.connect(
         &device_port,
@@ -179,6 +130,6 @@ fn main() {
             }
             continue;
         }
-        println!("{:?}", msg.d);
+        println!("at {}: {}", msg.timestamp_us, msg.d);
     }
 }
