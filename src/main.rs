@@ -4,6 +4,8 @@ use std::sync::mpsc::{channel, Sender};
 
 use midi_control::MidiMessage::*;
 
+use serde::{Serialize};
+
 mod types;
 use types::*;
 
@@ -23,7 +25,7 @@ where T: midir::MidiIO, {
     device_port
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 struct Retval {
     d: ControllerEvent,
     timestamp_us: u64
@@ -96,7 +98,7 @@ fn midi_message_callback(timestamp: u64, data: &[u8], df: &mut Stuff) {
 }
 
 fn main() {
-    let midi_input = midir::MidiInput::new("MIDITest").unwrap();
+    let midi_input = midir::MidiInput::new("ForTheMemes").unwrap();
     let device_port = find_port(&midi_input);
     if device_port.is_none() {
         eprintln!("Input device not found!");
@@ -119,6 +121,7 @@ fn main() {
     let mut can_go = false;
     eprintln!("Press the MOD button on the keyboard to activate the controller.");
     eprintln!("Press CTRL-C on the computer to end.");
+
     loop {
         let msg: Retval = receiver.recv().unwrap();
         if !can_go {
@@ -130,6 +133,9 @@ fn main() {
             }
             continue;
         }
-        println!("at {}: {}", msg.timestamp_us, msg.d);
+        match serde_json::to_string(&msg) {
+            Ok(res) => println!("{res}"),
+            Err(e) => eprintln!("failed to serialize data {0}: {e}", msg.d),
+        };
     }
 }

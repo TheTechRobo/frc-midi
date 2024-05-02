@@ -1,4 +1,6 @@
-#[derive(Debug, Eq, PartialEq)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Button {
     ButtonC,
     ButtonCS,
@@ -34,17 +36,6 @@ impl Button {
             ButtonMod => 12,
         }
     }
-}
-
-impl std::fmt::Display for Button {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let note2name = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B", "MOD"];
-        let tk: usize = self.to_key().into();
-        write!(f, "{}", note2name[tk])
-    }
-}
-
-impl Button {
     pub fn from_int(key: u8) -> Button {
         let nk: u8 = key % 12;
         // Octave is not currently necessary
@@ -69,7 +60,15 @@ impl Button {
     }
 }
 
-#[derive(Debug)]
+impl std::fmt::Display for Button {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let note2name = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B", "MOD"];
+        let tk: usize = self.to_key().into();
+        write!(f, "{}", note2name[tk])
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum DialMovement {
     Left,
     Right,
@@ -87,7 +86,7 @@ impl std::fmt::Display for DialMovement {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ControllerEvent {
     ButtonPress(Button),
     ButtonRelease(Button),
