@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+#[allow(clippy::enum_variant_names)]
+
 #[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum Button {
     ButtonC,
@@ -72,7 +74,6 @@ impl std::fmt::Display for Button {
 pub enum DialMovement {
     Left,
     Right,
-    NoChange
 }
 
 impl std::fmt::Display for DialMovement {
@@ -80,7 +81,6 @@ impl std::fmt::Display for DialMovement {
         let a = match self {
             DialMovement::Left => "Left",
             DialMovement::Right => "Right",
-            DialMovement::NoChange => "No Change"
         };
         write!(f, "{a}")
     }
@@ -100,5 +100,32 @@ impl std::fmt::Display for ControllerEvent {
             ControllerEvent::ButtonRelease(e) => write!(f, "ButtonRelease({e})"),
             ControllerEvent::DialTurn(e) => write!(f, "DialTurn({e})")
         }
+    }
+}
+
+const BUTTON_PRESS:   u8 = 0b01000000;
+const BUTTON_RELEASE: u8 = 0b11000000;
+const DIAL_MOVEMENT:  u8 = 0b10000000;
+
+impl ControllerEvent {
+    pub fn to_bytes(&self) -> u8 {
+        let mut res;
+        match self {
+            ControllerEvent::ButtonPress(button) => {
+                res = BUTTON_PRESS;
+                res |= button.to_key();
+            },
+            ControllerEvent::ButtonRelease(button) => {
+                res = BUTTON_RELEASE;
+                res |= button.to_key();
+            },
+            ControllerEvent::DialTurn(event) => {
+                res = DIAL_MOVEMENT;
+                if *event == DialMovement::Left {
+                    res |= 1;
+                }
+            }
+        };
+        res
     }
 }

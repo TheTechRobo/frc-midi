@@ -1,10 +1,12 @@
 use midi_control::MidiMessage;
 
 use std::sync::mpsc::{channel, Sender};
+use std::net::TcpStream;
+use std::io::prelude::*;
 
 use midi_control::MidiMessage::*;
 
-use serde::{Serialize};
+use serde::Serialize;
 
 mod types;
 use types::*;
@@ -68,7 +70,7 @@ fn midi_message_callback(timestamp: u64, data: &[u8], df: &mut Stuff) {
                 } else if data[1] == 127 || data[1] > df.last_program {
                     direction = DialMovement::Right;
                 } else {
-                    direction = DialMovement::NoChange;
+                    return;
                 }
                 df.last_program = data[1];
                 if df.dial_calibrated {
@@ -119,6 +121,30 @@ fn main() {
         thing
     );
     let mut can_go = false;
+
+    eprintln!("Waiting for server welcome...");
+    let mut stream;
+    loop {
+        let thing = TcpStream::connect("127.0.0.1:7757");
+        match thing {
+            Ok(r) => {
+                stream = r;
+            },
+            Err(e) => {
+                eprintln!("failed to connect to relay: {e}");
+                continue;
+            }
+        };
+        match stream.read(&mut [0;1]) {
+            std::io::Result::Ok(_) => break,
+            std::io::Result::Err(e) => {
+                eprintln!("didnt receive welcome message ({e}), reconnecting");
+                let _ = stream.shutdown(std::net::Shutdown::Both);
+                continue;
+            }
+        }
+    }
+
     eprintln!("Press the MOD button on the keyboard to activate the controller.");
     eprintln!("Press CTRL-C on the computer to end.");
 
@@ -133,9 +159,9 @@ fn main() {
             }
             continue;
         }
-        match serde_json::to_string(&msg) {
-            Ok(res) => println!("{res}"),
-            Err(e) => eprintln!("failed to serialize data {0}: {e}", msg.d),
-        };
+        match stream.write_all(&[msg.d.to_bytes()]) {
+            Ok(_) => (),
+            Err(e) => eprintln!("warning: cannot send to stream: {e}; try restarting the controller client"),
+        }
     }
 }
