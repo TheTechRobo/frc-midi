@@ -99,6 +99,10 @@ fn midi_message_callback(timestamp: u64, data: &[u8], df: &mut Stuff) {
     }
 }
 
+use core::sync::atomic::{AtomicBool, Ordering};
+
+static ALREADY_PUSHED_MOD: AtomicBool = AtomicBool::new(false);
+
 fn main() {
     let midi_input = midir::MidiInput::new("ForTheMemes").unwrap();
     let device_port = find_port(&midi_input);
@@ -120,7 +124,6 @@ fn main() {
         midi_message_callback,
         thing
     );
-    let mut can_go = false;
 
     eprintln!("Waiting for server welcome...");
     let mut stream;
@@ -147,15 +150,17 @@ fn main() {
         }
     }
 
-    eprintln!("Press the MOD button on the keyboard to activate the controller.");
+    if !ALREADY_PUSHED_MOD.load(Ordering::Relaxed) {
+        eprintln!("Press the MOD button on the keyboard to activate the controller.");
+    }
     eprintln!("Press CTRL-C on the computer to end.");
 
     loop {
         let msg: Retval = receiver.recv().unwrap();
-        if !can_go {
+        if !ALREADY_PUSHED_MOD.load(Ordering::Relaxed) {
             if let ControllerEvent::ButtonRelease(btn) = msg.d {
                 if btn == Button::ButtonMod {
-                    can_go = true;
+                    ALREADY_PUSHED_MOD.store(true, Ordering::Relaxed);
                     eprintln!("Controller activated!");
                 }
             }

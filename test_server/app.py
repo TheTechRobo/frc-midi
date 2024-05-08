@@ -5,10 +5,9 @@ BUTTONS = [
 ]
 
 async def _server_callback(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
-    print("Received connection")
     writer.write(b"GO!")
     await writer.drain()
-    print("Awaiting data")
+    print("Received connection, awaiting data")
     while msgb := await reader.read(1):
         msg = msgb[0]
         type = msg >> 6
