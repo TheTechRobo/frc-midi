@@ -132,6 +132,7 @@ fn main() {
             },
             Err(e) => {
                 eprintln!("failed to connect to relay: {e}");
+                std::thread::sleep_ms(400);
                 continue;
             }
         };
@@ -140,6 +141,7 @@ fn main() {
             std::io::Result::Err(e) => {
                 eprintln!("didnt receive welcome message ({e}), reconnecting");
                 let _ = stream.shutdown(std::net::Shutdown::Both);
+                std::thread::sleep_ms(500);
                 continue;
             }
         }
@@ -161,7 +163,7 @@ fn main() {
         }
         match stream.write_all(&[msg.d.to_bytes()]) {
             Ok(_) => (),
-            Err(e) => eprintln!("warning: cannot send to stream: {e}; try restarting the controller client"),
+            Err(e) => { eprintln!("warning: cannot send to stream: {e}; resetting"); main() },
         }
     }
 }
